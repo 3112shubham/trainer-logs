@@ -1,0 +1,86 @@
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+
+/**
+ * Export entries to PDF
+ */
+export const exportToPDF = (data, filters, companyName) => {
+  const doc = new jsPDF();
+
+  // Add company header
+  doc.setFontSize(20);
+  doc.setTextColor(40, 40, 40);
+  doc.text(companyName || 'Training Management System', 14, 22);
+
+  // Add filters info
+  doc.setFontSize(12);
+  doc.setTextColor(100, 100, 100);
+  let filterText = 'All Entries';
+  if (filters.campus || filters.batch) {
+    filterText = `Filtered: ${filters.campus || 'All Campuses'} - ${filters.batch || 'All Batches'}`;
+  }
+  doc.text(filterText, 14, 32);
+
+  // Add date of export
+  doc.text(`Exported on: ${new Date().toLocaleDateString()}`, 14, 42);
+
+  // Add table with entries
+  autoTable(doc, {
+    startY: 50,
+    head: [['Date', 'Campus', 'Batch', 'Trainer', 'Topic', 'Subtopic', 'Hours', 'Count']],
+    body: data.map(entry => [
+      new Date(entry.date.seconds * 1000).toLocaleDateString(),
+      entry.campus,
+      entry.batch,
+      entry.trainerName,
+      entry.topic,
+      entry.subtopic,
+      entry.hours,
+      entry.studentCount
+    ]),
+    theme: 'grid',
+    headStyles: {
+      fillColor: [41, 128, 185],
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    alternateRowStyles: {
+      fillColor: [240, 240, 240]
+    }
+  });
+
+  doc.save('training_entries.pdf');
+};
+
+/**
+ * Export entries to Excel
+ */
+export const exportToExcel = (data, filters) => {
+  // Convert entries into a sheet
+  const worksheet = XLSX.utils.json_to_sheet(
+    data.map(entry => ({
+      Date: new Date(entry.date.seconds * 1000).toLocaleDateString(),
+      Campus: entry.campus,
+      Batch: entry.batch,
+      'Trainer Name': entry.trainerName,
+      Topic: entry.topic,
+      Subtopic: entry.subtopic,
+      Hours: entry.hours,
+      'Student Count': entry.studentCount
+    }))
+  );
+
+  // Create workbook and add sheet
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Entries');
+
+  // Dynamic file name based on filters
+  let fileName = 'training_entries.xlsx';
+  if (filters.campus || filters.batch) {
+    fileName = `training_entries_${filters.campus || 'all'}_${filters.batch || 'all'}.xlsx`;
+  }
+
+  // Save the file
+  XLSX.writeFile(workbook, fileName);
+};
