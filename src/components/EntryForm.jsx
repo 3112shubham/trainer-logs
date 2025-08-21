@@ -185,7 +185,7 @@ const EntryForm = () => {
   };
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mx-2 md:mx-0">
+    <div >
       <h2 className="text-xl font-semibold text-gray-800 mb-4 md:mb-6">Add Work Entry</h2>
       
       {message && (

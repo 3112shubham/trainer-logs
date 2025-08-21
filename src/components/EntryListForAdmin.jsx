@@ -214,7 +214,7 @@ const EntryListForAdmin = () => {
   }
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
+    <div>
       <h2 className="text-xl font-semibold text-gray-800 mb-4 md:mb-6">All Training Entries</h2>
       
       <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">

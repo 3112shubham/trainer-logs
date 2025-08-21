@@ -192,7 +192,7 @@ const EntryListForTrainer = () => {
   }
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
+    <div >
       <h2 className="text-xl font-semibold text-gray-800 mb-4 md:mb-6">My Training Entries</h2>
       
       <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -245,7 +245,7 @@ const EntryListForTrainer = () => {
       </div>
       
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-200 ">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
