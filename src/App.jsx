@@ -6,6 +6,7 @@ import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import TrainerDashboard from './components/TrainerDashboard';
 import './App.css';
+import TrainerRegistration from './components/TrainerRegistration';
 
 function App() {
   const [user, setUser] = useState(null);

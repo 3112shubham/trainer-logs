@@ -231,47 +231,20 @@ const AdminDashboard = () => {
 
   // Simple QR code component using CSS
   const SimpleQRCode = ({ value, size = 200 }) => {
-    // This is a simple representation - in a real app, you'd use a proper QR code library
-    return (
-      <div className="qr-code" style={{ 
-        width: size, 
-        height: size, 
-        backgroundColor: '#fff', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        border: '2px solid #000',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        <div style={{ 
-          fontSize: '10px', 
-          textAlign: 'center',
-          wordBreak: 'break-all',
-          padding: '10px'
-        }}>
-          {value}
-        </div>
-        {/* QR code pattern simulation */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundImage: `
-            linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
-            linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
-            linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
-            linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)
-          `,
-          backgroundSize: '20px 20px',
-          backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-          opacity: 0.3
-        }}></div>
-      </div>
-    );
-  };
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}`;
+  
+  return (
+    <div className="qr-code-container">
+      <img 
+        src={qrCodeUrl} 
+        alt="QR Code" 
+        width={size} 
+        height={size}
+        className="border border-gray-300 rounded"
+      />
+    </div>
+  );
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
