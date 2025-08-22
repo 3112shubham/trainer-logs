@@ -92,7 +92,9 @@ const EntryListForAdmin = () => {
       querySnapshot.forEach((doc) => {
         projectsData.push({ id: doc.id, ...doc.data() });
       });
-      setProjects(projectsData);
+  // sort projects alphabetically by name
+  projectsData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setProjects(projectsData);
     } catch (error) {
       console.error('Error fetching projects:', error);
     }
@@ -106,7 +108,9 @@ const EntryListForAdmin = () => {
       querySnapshot.forEach((doc) => {
         trainersData.push({ id: doc.id, ...doc.data() });
       });
-      setTrainers(trainersData);
+  // sort trainers alphabetically by display name or email
+  trainersData.sort((a, b) => ((a.name || a.email) || '').toString().localeCompare(((b.name || b.email) || '').toString()));
+  setTrainers(trainersData);
     } catch (error) {
       console.error('Error fetching trainers:', error);
     }
@@ -120,7 +124,9 @@ const EntryListForAdmin = () => {
       querySnapshot.forEach((doc) => {
         campusesData.push({ id: doc.id, ...doc.data() });
       });
-      setCampuses(campusesData);
+  // sort campuses alphabetically by name
+  campusesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setCampuses(campusesData);
       setProjectHasCampuses(campusesData.length > 0);
     } catch (error) {
       console.error('Error fetching campuses:', error);
@@ -136,7 +142,8 @@ const EntryListForAdmin = () => {
       querySnapshot.forEach((doc) => {
         batchesData.push({ id: doc.id, ...doc.data() });
       });
-      
+      // sort batches alphabetically by name
+      batchesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
       // If project doesn't have campuses, set batches directly
       if (batchesData.length > 0) {
         setBatches(batchesData);
@@ -161,7 +168,9 @@ const EntryListForAdmin = () => {
       querySnapshot.forEach((doc) => {
         batchesData.push({ id: doc.id, ...doc.data() });
       });
-      setBatches(batchesData);
+  // sort batches alphabetically by name
+  batchesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setBatches(batchesData);
       
       // Reset batch filter when batches change
       setFilters(prev => ({ ...prev, batch: '' }));

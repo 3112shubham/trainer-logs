@@ -3,7 +3,7 @@ import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from '../hooks/useAuth';
 
-const EntryListForTrainer = () => {
+const EntryListForTrainer = ({ onEditEntry = () => {} }) => {
   const [entries, setEntries] = useState([]);
   const [projects, setProjects] = useState([]);
   const [campuses, setCampuses] = useState([]);
@@ -95,7 +95,9 @@ const EntryListForTrainer = () => {
       querySnapshot.forEach((doc) => {
         projectsData.push({ id: doc.id, ...doc.data() });
       });
-      setProjects(projectsData);
+  // sort projects alphabetically by name
+  projectsData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setProjects(projectsData);
     } catch (error) {
       console.error('Error fetching projects:', error);
     }
@@ -109,7 +111,9 @@ const EntryListForTrainer = () => {
       querySnapshot.forEach((doc) => {
         campusesData.push({ id: doc.id, ...doc.data() });
       });
-      setCampuses(campusesData);
+  // sort campuses alphabetically by name
+  campusesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setCampuses(campusesData);
       setProjectHasCampuses(campusesData.length > 0);
     } catch (error) {
       console.error('Error fetching campuses:', error);
@@ -125,7 +129,8 @@ const EntryListForTrainer = () => {
       querySnapshot.forEach((doc) => {
         batchesData.push({ id: doc.id, ...doc.data() });
       });
-      
+      // sort batches alphabetically by name
+      batchesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
       // If project doesn't have campuses, set batches directly
       if (batchesData.length > 0) {
         setBatches(batchesData);
@@ -150,7 +155,9 @@ const EntryListForTrainer = () => {
       querySnapshot.forEach((doc) => {
         batchesData.push({ id: doc.id, ...doc.data() });
       });
-      setBatches(batchesData);
+  // sort batches alphabetically by name
+  batchesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setBatches(batchesData);
       
       // Reset batch filter when batches change
       setFilters(prev => ({ ...prev, batch: '' }));
@@ -281,6 +288,9 @@ const EntryListForTrainer = () => {
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{entry.hours}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{entry.studentCount}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <button onClick={() => onEditEntry(entry)} className="text-sm text-blue-600 hover:underline">Edit</button>
+                  </td>
                 </tr>
               ))
             )}

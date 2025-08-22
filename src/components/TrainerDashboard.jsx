@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 const TrainerDashboard = () => {
   const { logout, currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('entryForm');
+  const [editEntry, setEditEntry] = useState(null);
 
   const handleLogout = async () => {
     try {
@@ -87,8 +88,22 @@ const TrainerDashboard = () => {
 
         {/* Tab Content */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          {activeTab === 'entryForm' && <EntryForm />}
-          {activeTab === 'entryList' && <EntryListForTrainer />}
+          {activeTab === 'entryForm' && (
+            <EntryForm
+              initialEntry={editEntry}
+              onSaved={() => {
+                // after save, clear edit and switch to list
+                setEditEntry(null);
+                setActiveTab('entryList');
+              }}
+              onCancel={() => {
+                setEditEntry(null);
+              }}
+            />
+          )}
+          {activeTab === 'entryList' && (
+            <EntryListForTrainer onEditEntry={(entry) => { setEditEntry(entry); setActiveTab('entryForm'); }} />
+          )}
         </div>
       </div>
 

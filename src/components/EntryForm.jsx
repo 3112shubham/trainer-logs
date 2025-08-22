@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from '../hooks/useAuth';
 
-const EntryForm = () => {
+const EntryForm = ({ initialEntry = null, onSaved = () => {}, onCancel = () => {} }) => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [project, setProject] = useState('');
   const [campus, setCampus] = useState('');
@@ -23,6 +23,21 @@ const EntryForm = () => {
   const { currentUser } = useAuth();
   
   const topics = ['Aptitude', 'SoftSkills', 'Technical', 'PowerBi', 'Excel'];
+
+  // if editing, populate fields
+  useEffect(() => {
+    if (initialEntry) {
+      setDate(new Date(initialEntry.date.seconds * 1000).toISOString().split('T')[0]);
+      setProject(initialEntry.projectId || '');
+      setCampus(initialEntry.campusId || '');
+      setBatch(initialEntry.batchId || '');
+      setTopic(initialEntry.topic || '');
+      setSubtopic(initialEntry.subtopic || '');
+      setStartTime(initialEntry.startTime || '');
+      setEndTime(initialEntry.endTime || '');
+      setStudentCount(initialEntry.studentCount || '');
+    }
+  }, [initialEntry]);
 
   useEffect(() => {
     fetchProjects();
@@ -145,8 +160,7 @@ const EntryForm = () => {
       const selectedProjectData = projects.find(p => p.id === project);
       const selectedCampusData = campuses.find(c => c.id === campus);
       const selectedBatchData = batches.find(b => b.id === batch);
-      
-      await addDoc(collection(db, 'entries'), {
+      const payload = {
         date: new Date(date),
         projectId: project,
         projectName: selectedProjectData?.name || '',
@@ -162,11 +176,18 @@ const EntryForm = () => {
         studentCount: parseInt(studentCount),
         trainerId: currentUser.uid,
         trainerName: currentUser.displayName || currentUser.email,
-        createdAt: new Date()
-      });
-      
-      setMessage('Entry submitted successfully!');
-      // Reset form
+      };
+
+      if (initialEntry && initialEntry.id) {
+        // update existing entry
+        await updateDoc(doc(db, 'entries', initialEntry.id), payload);
+        setMessage('Entry updated successfully!');
+      } else {
+        // create new entry
+        await addDoc(collection(db, 'entries'), { ...payload, createdAt: new Date() });
+        setMessage('Entry submitted successfully!');
+      }
+  // Reset form
       setDate(new Date().toISOString().split('T')[0]);
       setProject('');
       setCampus('');
@@ -176,6 +197,7 @@ const EntryForm = () => {
       setStartTime('');
       setEndTime('');
       setStudentCount('');
+  onSaved();
     } catch (error) {
       setMessage('Error submitting entry: ' + error.message);
     }
@@ -369,14 +391,23 @@ const EntryForm = () => {
           </div>
         </div>
         
-        <div>
+        <div className="flex space-x-3">
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors text-sm md:text-base"
+            className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors text-sm md:text-base"
           >
-            {loading ? 'Submitting...' : 'Submit Entry'}
+            {loading ? (initialEntry ? 'Saving...' : 'Submitting...') : (initialEntry ? 'Save Changes' : 'Submit Entry')}
           </button>
+          {initialEntry && (
+            <button
+              type="button"
+              onClick={() => { onCancel(); }}
+              className="px-4 py-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm md:text-base"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </form>
     </div>

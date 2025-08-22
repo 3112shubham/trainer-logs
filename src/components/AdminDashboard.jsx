@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../services/firebase';
@@ -10,6 +10,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('entries');
   const [trainerEmail, setTrainerEmail] = useState('');
   const [trainerName, setTrainerName] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
   const [projectName, setProjectName] = useState('');
   const [campusName, setCampusName] = useState('');
   const [batchName, setBatchName] = useState('');
@@ -20,11 +21,8 @@ const AdminDashboard = () => {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [showQRCode, setShowQRCode] = useState(false);
   const { logout, currentUser } = useAuth();
 
-  // Registration link for QR code
-  const registrationLink = `${window.location.origin}/trainer-registration`;
 
   // Load data from Firestore
   useEffect(() => {
@@ -54,7 +52,9 @@ const AdminDashboard = () => {
       querySnapshot.forEach((doc) => {
         projectsData.push({ id: doc.id, ...doc.data() });
       });
-      setProjects(projectsData);
+  // sort projects alphabetically by name
+  projectsData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setProjects(projectsData);
     } catch (error) {
       console.error('Error fetching projects:', error);
     }
@@ -68,7 +68,9 @@ const AdminDashboard = () => {
       querySnapshot.forEach((doc) => {
         campusesData.push({ id: doc.id, ...doc.data() });
       });
-      setCampuses(campusesData);
+  // sort campuses alphabetically by name
+  campusesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setCampuses(campusesData);
     } catch (error) {
       console.error('Error fetching campuses:', error);
     }
@@ -82,7 +84,9 @@ const AdminDashboard = () => {
       querySnapshot.forEach((doc) => {
         batchesData.push({ id: doc.id, ...doc.data() });
       });
-      setBatches(batchesData);
+  // sort batches alphabetically by name
+  batchesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setBatches(batchesData);
     } catch (error) {
       console.error('Error fetching batches:', error);
     }
@@ -223,28 +227,161 @@ const AdminDashboard = () => {
     }
   };
 
-  const copyRegistrationLink = () => {
-    navigator.clipboard.writeText(registrationLink);
-    setMessage('Registration link copied to clipboard!');
+  // Edit and Delete handlers for projects, campuses and batches
+  const handleEditProject = async (project) => {
+    const newName = window.prompt('Enter new project name', project.name);
+    if (!newName || newName.trim() === '' || newName === project.name) return;
+    setLoading(true);
+    try {
+      await updateDoc(doc(db, 'projects', project.id), { name: newName });
+      // update projectName on campuses and batches
+      const qCamp = query(collection(db, 'campuses'), where('projectId', '==', project.id));
+      const camps = await getDocs(qCamp);
+      for (const c of camps.docs) {
+        await updateDoc(doc(db, 'campuses', c.id), { projectName: newName });
+      }
+      const qBatch = query(collection(db, 'batches'), where('projectId', '==', project.id));
+      const bs = await getDocs(qBatch);
+      for (const b of bs.docs) {
+        await updateDoc(doc(db, 'batches', b.id), { projectName: newName });
+      }
+      setMessage('Project renamed successfully');
+      fetchProjects();
+      if (selectedProject === project.id) setSelectedProject(project.id); // trigger campus refetch
+    } catch (error) {
+      setMessage('Error renaming project: ' + (error.message || error));
+    }
+    setLoading(false);
     setTimeout(() => setMessage(''), 3000);
   };
 
-  // Simple QR code component using CSS
-  const SimpleQRCode = ({ value, size = 200 }) => {
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}`;
-  
-  return (
-    <div className="qr-code-container">
-      <img 
-        src={qrCodeUrl} 
-        alt="QR Code" 
-        width={size} 
-        height={size}
-        className="border border-gray-300 rounded"
-      />
-    </div>
-  );
-};
+  const handleDeleteProject = async (project) => {
+    const ok = window.confirm(`Delete project "${project.name}" and all its campuses and batches? This cannot be undone.`);
+    if (!ok) return;
+    setLoading(true);
+    try {
+      // delete batches under project
+      const qBatch = query(collection(db, 'batches'), where('projectId', '==', project.id));
+      const bs = await getDocs(qBatch);
+      for (const b of bs.docs) {
+        await deleteDoc(doc(db, 'batches', b.id));
+      }
+      // delete campuses under project
+      const qCamp = query(collection(db, 'campuses'), where('projectId', '==', project.id));
+      const camps = await getDocs(qCamp);
+      for (const c of camps.docs) {
+        await deleteDoc(doc(db, 'campuses', c.id));
+      }
+      // delete project
+      await deleteDoc(doc(db, 'projects', project.id));
+      setMessage('Project and its children deleted');
+      fetchProjects();
+      setSelectedProject('');
+      setCampuses([]);
+      setBatches([]);
+    } catch (error) {
+      setMessage('Error deleting project: ' + (error.message || error));
+    }
+    setLoading(false);
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleEditCampus = async (campus) => {
+    const newName = window.prompt('Enter new campus name', campus.name);
+    if (!newName || newName.trim() === '' || newName === campus.name) return;
+    setLoading(true);
+    try {
+      await updateDoc(doc(db, 'campuses', campus.id), { name: newName });
+      // update campusName on batches
+      const qBatch = query(collection(db, 'batches'), where('campusId', '==', campus.id));
+      const bs = await getDocs(qBatch);
+      for (const b of bs.docs) {
+        await updateDoc(doc(db, 'batches', b.id), { campusName: newName });
+      }
+      setMessage('Campus renamed successfully');
+      if (selectedProject) fetchCampuses(selectedProject);
+      if (selectedCampus === campus.id) setSelectedCampus(campus.id);
+    } catch (error) {
+      setMessage('Error renaming campus: ' + (error.message || error));
+    }
+    setLoading(false);
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleDeleteCampus = async (campus) => {
+    const ok = window.confirm(`Delete campus "${campus.name}" and all its batches? This cannot be undone.`);
+    if (!ok) return;
+    setLoading(true);
+    try {
+      // delete batches under campus
+      const qBatch = query(collection(db, 'batches'), where('campusId', '==', campus.id));
+      const bs = await getDocs(qBatch);
+      for (const b of bs.docs) {
+        await deleteDoc(doc(db, 'batches', b.id));
+      }
+      // delete campus
+      await deleteDoc(doc(db, 'campuses', campus.id));
+      setMessage('Campus and its batches deleted');
+      if (selectedProject) fetchCampuses(selectedProject);
+      setSelectedCampus('');
+      setBatches([]);
+    } catch (error) {
+      setMessage('Error deleting campus: ' + (error.message || error));
+    }
+    setLoading(false);
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleEditBatch = async (batch) => {
+    const newName = window.prompt('Enter new batch name', batch.name);
+    if (!newName || newName.trim() === '' || newName === batch.name) return;
+    setLoading(true);
+    try {
+      await updateDoc(doc(db, 'batches', batch.id), { name: newName });
+      setMessage('Batch renamed successfully');
+      if (selectedProject && selectedCampus) fetchBatches(selectedProject, selectedCampus);
+    } catch (error) {
+      setMessage('Error renaming batch: ' + (error.message || error));
+    }
+    setLoading(false);
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleDeleteBatch = async (batch) => {
+    const ok = window.confirm(`Delete batch "${batch.name}"? This cannot be undone.`);
+    if (!ok) return;
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, 'batches', batch.id));
+      setMessage('Batch deleted');
+      if (selectedProject && selectedCampus) fetchBatches(selectedProject, selectedCampus);
+    } catch (error) {
+      setMessage('Error deleting batch: ' + (error.message || error));
+    }
+    setLoading(false);
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  // ...existing code...
+
+  const handleSendPasswordReset = async (e) => {
+    e && e.preventDefault && e.preventDefault();
+    if (!resetEmail) {
+      setMessage('Please enter an email to send the reset link');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      setMessage(`Password reset link sent to ${resetEmail}`);
+      setResetEmail('');
+    } catch (error) {
+      setMessage('Error sending reset email: ' + (error.message || error));
+    }
+    setLoading(false);
+    setTimeout(() => setMessage(''), 3000);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -391,65 +528,36 @@ const AdminDashboard = () => {
                 <div className="bg-green-50 p-6 rounded-xl border border-green-100">
                   <h3 className="text-lg font-medium text-green-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 8a6 6 0 11-12 0 6 6 0 0112 0zM12 14v4" />
                     </svg>
-                    QR Code Registration
+                    Send Password Reset
                   </h3>
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-600">
-                      Share this QR code or registration link with trainers. When they scan it, they'll be able to register themselves.
-                    </p>
-                    
-                    <div className="flex flex-col items-center space-y-4">
-                      {showQRCode ? (
-                        <>
-                          <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                            <SimpleQRCode value={registrationLink} size={200} />
-                          </div>
-                          <button
-                            onClick={() => setShowQRCode(false)}
-                            className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
-                          >
-                            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            Hide QR Code
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => setShowQRCode(true)}
-                          className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm hover:shadow-md flex items-center"
-                        >
-                          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                          </svg>
-                          Show QR Code
-                        </button>
-                      )}
-                      
-                      <div className="w-full">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Registration Link</label>
-                        <div className="flex">
-                          <input
-                            type="text"
-                            value={registrationLink}
-                            readOnly
-                            className="flex-1 p-3 border border-gray-300 rounded-l-lg bg-gray-50 text-sm"
-                          />
-                          <button
-                            onClick={copyRegistrationLink}
-                            className="px-4 py-3 bg-gray-200 text-gray-700 rounded-r-lg hover:bg-gray-300 text-sm transition-colors flex items-center"
-                          >
-                            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                            </svg>
-                            Copy
-                          </button>
-                        </div>
-                      </div>
+
+                  <p className="text-sm text-gray-600 mb-4">
+                    Enter an existing trainer's email and send a password reset link. This will not create a new user.
+                  </p>
+
+                  <form onSubmit={handleSendPasswordReset} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Trainer Email</label>
+                      <input
+                        type="email"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        placeholder="trainer@example.com"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                        required
+                      />
                     </div>
-                  </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                    >
+                      {loading ? 'Sending...' : 'Send Reset Link'}
+                    </button>
+                  </form>
                 </div>
               </div>
             </div>
@@ -629,40 +737,58 @@ const AdminDashboard = () => {
                   <div className="space-y-4">
                     {projects.map(project => (
                       <div key={project.id} className="border border-gray-200 rounded-lg p-4">
-                        <h4 className="font-medium text-gray-800 flex items-center">
-                          <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                          </svg>
-                          {project.name}
-                        </h4>
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium text-gray-800 flex items-center">
+                            <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            {project.name}
+                          </h4>
+                          <div className="space-x-2">
+                            <button onClick={() => handleEditProject(project)} className="text-sm text-blue-600 hover:underline">Edit</button>
+                            <button onClick={() => handleDeleteProject(project)} className="text-sm text-red-600 hover:underline">Delete</button>
+                          </div>
+                        </div>
                         
                         <div className="mt-3 ml-6 space-y-3 border-l-2 border-blue-200 pl-4">
                           {campuses.filter(c => c.projectId === project.id).length === 0 ? (
                             <div className="text-gray-400 text-sm bg-gray-50 p-2 rounded">
-                              No campuses added yet
+                              
                             </div>
                           ) : (
                             campuses.filter(c => c.projectId === project.id).map(campus => (
                               <div key={campus.id} className="border-l-2 border-green-200 pl-3">
-                                <h5 className="font-medium text-gray-700 flex items-center">
-                                  <svg className="w-4 h-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                  </svg>
-                                  {campus.name}
-                                </h5>
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-gray-700 flex items-center">
+                                    <svg className="w-4 h-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                    </svg>
+                                    {campus.name}
+                                  </h5>
+                                  <div className="space-x-2">
+                                    <button onClick={() => handleEditCampus(campus)} className="text-sm text-blue-600 hover:underline">Edit</button>
+                                    <button onClick={() => handleDeleteCampus(campus)} className="text-sm text-red-600 hover:underline">Delete</button>
+                                  </div>
+                                </div>
                                 
                                 <div className="mt-2 ml-4 space-y-2 border-l-2 border-purple-200 pl-3">
                                   {batches.filter(b => b.campusId === campus.id).length === 0 ? (
                                     <div className="text-gray-400 text-sm bg-gray-50 p-2 rounded">
-                                      No batches in this campus
+                                      
                                     </div>
                                   ) : (
                                     batches.filter(b => b.campusId === campus.id).map(batch => (
-                                      <div key={batch.id} className="text-gray-600 flex items-center">
-                                        <svg className="w-4 h-4 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                        </svg>
-                                        {batch.name}
+                                      <div key={batch.id} className="text-gray-600 flex items-center justify-between">
+                                        <div className="flex items-center">
+                                          <svg className="w-4 h-4 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                          </svg>
+                                          {batch.name}
+                                        </div>
+                                        <div className="space-x-2">
+                                          <button onClick={() => handleEditBatch(batch)} className="text-sm text-blue-600 hover:underline">Edit</button>
+                                          <button onClick={() => handleDeleteBatch(batch)} className="text-sm text-red-600 hover:underline">Delete</button>
+                                        </div>
                                       </div>
                                     ))
                                   )}
