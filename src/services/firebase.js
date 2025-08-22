@@ -4,15 +4,14 @@ import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBEiORqNEEgdGDGbbXtV3V3M2EeOv4WUVs",
-  authDomain: "trainer-management-system.firebaseapp.com",
-  projectId: "trainer-management-system",
-  storageBucket: "trainer-management-system.firebasestorage.app",
-  messagingSenderId: "652433620936",
-  appId: "1:652433620936:web:d72aaf435980774d5fcafd",
-  measurementId: "G-2K1CD79ZKJ"
+  apiKey: "AIzaSyDsx7vWi12fgOQWwnSNb12ltaueMvxO6dc",
+  authDomain: "closure-report.firebaseapp.com",
+  projectId: "closure-report",
+  storageBucket: "closure-report.firebasestorage.app",
+  messagingSenderId: "2720838408",
+  appId: "1:2720838408:web:a496187cce00710b0472bd",
+  measurementId: "G-5PZ4Y2R58R"
 };
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
