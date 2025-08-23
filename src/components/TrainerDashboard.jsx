@@ -23,10 +23,14 @@ const TrainerDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <div className="bg-blue-600 p-2 rounded-lg mr-3">
-                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
+              <div className="mr-3">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-800 via-indigo-700 to-blue-700 flex items-center justify-center overflow-hidden shadow-md ring-1 ring-blue-900/20">
+                  <img
+                    src="https://res.cloudinary.com/dcjmaapvi/image/upload/v1730120218/Gryphon_Academy_Bird_Logo_yzzl3q.png"
+                    alt="Bird logo"
+                    className="h-7 w-7 object-contain"
+                  />
+                </div>
               </div>
               <h1 className="text-2xl font-bold text-gray-900">Trainer Dashboard</h1>
             </div>
@@ -36,7 +40,7 @@ const TrainerDashboard = () => {
                   {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : currentUser?.email?.charAt(0).toUpperCase()}
                 </div>
                 <span className="text-sm text-gray-700">
-                  {currentUser?.displayName || currentUser?.email}
+                  {currentUser?.name || currentUser?.email}
                 </span>
               </div>
               <button
@@ -109,9 +113,6 @@ const TrainerDashboard = () => {
 
       {/* Footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 mt-8 border-t border-gray-200">
-        <div className="text-center text-sm text-gray-500">
-          <p>© {new Date().getFullYear()} Training Management System. All rights reserved.</p>
-        </div>
       </div>
     </div>
   );

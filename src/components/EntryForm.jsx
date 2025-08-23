@@ -22,7 +22,7 @@ const EntryForm = ({ initialEntry = null, onSaved = () => {}, onCancel = () => {
   
   const { currentUser } = useAuth();
   
-  const topics = ['Aptitude', 'SoftSkills', 'Technical', 'PowerBi', 'Excel'];
+  const topics = ['Aptitude', 'SoftSkills', 'Technical', 'PowerBi', 'Excel'].sort((a,b) => a.toString().localeCompare(b.toString()));
 
   // if editing, populate fields
   useEffect(() => {
@@ -69,7 +69,9 @@ const EntryForm = ({ initialEntry = null, onSaved = () => {}, onCancel = () => {
       querySnapshot.forEach((doc) => {
         projectsData.push({ id: doc.id, ...doc.data() });
       });
-      setProjects(projectsData);
+  // sort projects alphabetically by name
+  projectsData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setProjects(projectsData);
     } catch (error) {
       console.error('Error fetching projects:', error);
       setMessage('Error loading projects');
@@ -84,7 +86,9 @@ const EntryForm = ({ initialEntry = null, onSaved = () => {}, onCancel = () => {
       querySnapshot.forEach((doc) => {
         campusesData.push({ id: doc.id, ...doc.data() });
       });
-      setCampuses(campusesData);
+  // sort campuses alphabetically by name
+  campusesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setCampuses(campusesData);
       setProjectHasCampuses(campusesData.length > 0);
       
       // Reset campus when campuses change
@@ -104,7 +108,8 @@ const EntryForm = ({ initialEntry = null, onSaved = () => {}, onCancel = () => {
       querySnapshot.forEach((doc) => {
         batchesData.push({ id: doc.id, ...doc.data() });
       });
-      
+      // sort batches alphabetically by name
+      batchesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
       // If project doesn't have campuses, set batches directly
       if (batchesData.length > 0) {
         setBatches(batchesData);
@@ -129,7 +134,9 @@ const EntryForm = ({ initialEntry = null, onSaved = () => {}, onCancel = () => {
       querySnapshot.forEach((doc) => {
         batchesData.push({ id: doc.id, ...doc.data() });
       });
-      setBatches(batchesData);
+  // sort batches alphabetically by name
+  batchesData.sort((a, b) => (a.name || '').toString().localeCompare((b.name || '').toString()));
+  setBatches(batchesData);
       
       // Reset batch when batches change
       setBatch('');

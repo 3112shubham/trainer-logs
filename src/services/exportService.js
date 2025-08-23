@@ -2,9 +2,32 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
-import { Document, Packer, Paragraph, Table, TableCell, TableRow, WidthType } from 'docx';
+import { Document, Packer, Paragraph, Table, TableCell, TableRow, WidthType, AlignmentType } from 'docx';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
 
-export const exportToPDF = (data, filters, companyName) => {
+const fetchTrainersMap = async () => {
+  const map = {};
+  try {
+    const q = query(collection(db, 'users'), where('role', '==', 'trainer'));
+    const snap = await getDocs(q);
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      const item = { name: d.name || '', email: d.email || '', uid: d.uid || doc.id };
+      // map by document id and by uid (if present)
+      map[doc.id] = item;
+      if (d.uid) map[d.uid] = item;
+    });
+  } catch (err) {
+    console.error('Error fetching trainers for export:', err);
+  }
+  return map;
+};
+
+export const exportToPDF = async (data, filters, companyName) => {
+  // fetch trainers map from DB to resolve names/emails
+  const trainersMap = await fetchTrainersMap();
+  
   // Create new PDF instance
   const doc = new jsPDF();
   
@@ -18,42 +41,76 @@ export const exportToPDF = (data, filters, companyName) => {
   doc.setTextColor(100, 100, 100);
   let filterText = 'All Entries';
   
-  const projectName = filters.projectName || 'All Projects';
   const campusName = filters.campusName || 'All Campuses';
   const batchName = filters.batchName || 'All Batches';
   
-  filterText = `Filtered: ${projectName} - ${campusName} - ${batchName}`;
+  filterText = `Filtered: ${campusName} - ${batchName}`;
   doc.text(filterText, 14, 32);
   
   // Add date of export
   doc.text(`Exported on: ${new Date().toLocaleDateString()}`, 14, 42);
   
-  // Prepare data for the table
-  const tableData = data.map(entry => [
-    new Date(entry.date.seconds * 1000).toLocaleDateString(),
-    entry.projectName || 'N/A',
-    entry.campusName || 'N/A',
-    entry.batchName || 'N/A',
-    entry.trainerName,
-    entry.topic,
-    entry.subtopic,
-    entry.hours,
-    entry.studentCount.toString()
-  ]);
+  // Prepare data for the table (PDF/Word: no project column). Use safe date and trainer name fallback.
+  const tableData = data.map(entry => {
+    // safe date handling
+    let dateStr = '';
+    if (entry.date && typeof entry.date === 'object' && entry.date.seconds) {
+      dateStr = new Date(entry.date.seconds * 1000).toLocaleDateString();
+    } else if (entry.date) {
+      try { dateStr = new Date(entry.date).toLocaleDateString(); } catch { dateStr = String(entry.date); }
+    }
 
-  // Add table using autoTable
+    // Resolve trainer fields with preference to DB name/email over entry fields
+    const trainerRef = trainersMap[entry.trainerId] || trainersMap[entry.trainer && entry.trainer.uid] || null;
+    const trainerObj = trainerRef || entry.trainer || {};
+    const rawTrainerName = entry.trainerName || '';
+    const rawTrainerEmail = entry.trainerEmail || '';
+
+    // If older entries stored email in trainerName, detect that
+    const trainerNameFromEntry = (rawTrainerName && rawTrainerName.includes('@')) ? '' : rawTrainerName;
+    const trainerEmailFromEntry = rawTrainerEmail || (rawTrainerName && rawTrainerName.includes('@') ? rawTrainerName : '');
+
+    const trainerDisplay = trainerObj.name || trainerNameFromEntry || trainerEmailFromEntry || trainerObj.email || 'N/A';
+
+    return [
+      dateStr,
+      entry.campusName || 'N/A',
+      entry.batchName || 'N/A',
+      trainerDisplay,
+      entry.topic || '',
+      entry.subtopic || '',
+      entry.hours != null ? String(entry.hours) : '',
+      entry.studentCount != null ? String(entry.studentCount) : ''
+    ];
+  });
+
+  // Add table using autoTable with better column widths
   autoTable(doc, {
     startY: 50,
-    head: [['Date', 'Project', 'Campus', 'Batch', 'Trainer', 'Topic', 'Subtopic', 'Hours', 'Count']],
+    head: [['Date', 'Campus', 'Batch', 'Trainer', 'Topic', 'Subtopic', 'Hours', 'Count']],
     body: tableData,
     theme: 'grid',
     headStyles: {
       fillColor: [41, 128, 185],
       textColor: 255,
-      fontStyle: 'bold'
+      fontStyle: 'bold',
+      halign: 'center'
+    },
+    bodyStyles: {
+      halign: 'center'
     },
     alternateRowStyles: {
       fillColor: [240, 240, 240]
+    },
+    columnStyles: {
+  0: { cellWidth: 22, halign: 'center' }, // Date
+  1: { cellWidth: 30, halign: 'center' }, // Campus
+  2: { cellWidth: 14, halign: 'center' }, // Batch (shorter)
+  3: { cellWidth: 28, halign: 'center' }, // Trainer
+  4: { cellWidth: 28, halign: 'center' }, // Topic
+  5: { cellWidth: 28, halign: 'center' }, // Subtopic
+  6: { cellWidth: 15, halign: 'center' }, // Hours
+  7: { cellWidth: 15, halign: 'center' }  // Count
     }
   });
   
@@ -62,85 +119,185 @@ export const exportToPDF = (data, filters, companyName) => {
 };
 
 export const exportToExcel = (data, filters) => {
-  // Format data for Excel
-  const excelData = data.map(entry => ({
-    Date: new Date(entry.date.seconds * 1000).toLocaleDateString(),
-    Project: entry.projectName || 'N/A',
-    Campus: entry.campusName || 'N/A',
-    Batch: entry.batchName || 'N/A',
-    'Trainer Name': entry.trainerName,
-    Topic: entry.topic,
-    Subtopic: entry.subtopic,
-    'Start Time': entry.startTime,
-    'End Time': entry.endTime,
-    Hours: entry.hours,
-    'Student Count': entry.studentCount
-  }));
+  // Format data for Excel (include all fields including Project and trainer email)
+  // We'll fetch trainers from DB to ensure name/email are taken from users collection when available
+  return (async () => {
+    const trainersMap = await fetchTrainersMap();
+    const excelData = data.map(entry => {
+    let dateStr = '';
+    if (entry.date && typeof entry.date === 'object' && entry.date.seconds) {
+      dateStr = new Date(entry.date.seconds * 1000).toLocaleDateString();
+    } else if (entry.date) {
+      try { dateStr = new Date(entry.date).toLocaleDateString(); } catch { dateStr = String(entry.date); }
+    }
+
+    const trainerRef = trainersMap[entry.trainerId] || trainersMap[entry.trainer && entry.trainer.uid] || null;
+    const trainerObj = trainerRef || entry.trainer || {};
+    const rawTrainerName = entry.trainerName || '';
+    const rawTrainerEmail = entry.trainerEmail || '';
+
+    // Determine trainer name and email for Excel: prefer DB values, but fallback to entry fields and handle old entries
+    let trainerName = trainerObj.name || '';
+    let trainerEmail = trainerObj.email || '';
+
+    if (!trainerName && rawTrainerName) {
+      if (rawTrainerName.includes('@')) {
+        // stored as email in old entries
+        trainerEmail = trainerEmail || rawTrainerName;
+      } else {
+        trainerName = rawTrainerName;
+      }
+    }
+
+    if (!trainerEmail && rawTrainerEmail) {
+      trainerEmail = rawTrainerEmail;
+    }
+
+    return {
+      Date: dateStr,
+      Project: entry.projectName || 'N/A',
+      Campus: entry.campusName || 'N/A',
+      Batch: entry.batchName || 'N/A',
+      'Trainer Name': trainerName,
+      'Trainer Email': trainerEmail,
+      Topic: entry.topic || '',
+      Subtopic: entry.subtopic || '',
+      'Start Time': entry.startTime || '',
+      'End Time': entry.endTime || '',
+      Hours: entry.hours != null ? entry.hours : '',
+      'Student Count': entry.studentCount != null ? entry.studentCount : ''
+    };
+  });
   
-  // Create worksheet and workbook
-  const worksheet = XLSX.utils.json_to_sheet(excelData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Entries');
-  
-  // Generate file name
-  const projectName = filters.projectName || 'all';
-  const campusName = filters.campusName || 'all';
-  const batchName = filters.batchName || 'all';
-  
-  const fileName = `training_entries_${projectName}_${campusName}_${batchName}.xlsx`;
-  
-  // Save the file
-  XLSX.writeFile(workbook, fileName);
+    // Create worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    // Set column widths to help fit content (approx chars)
+    worksheet['!cols'] = [
+      { wch: 12 }, // Date
+      { wch: 18 }, // Project
+      { wch: 14 }, // Campus
+      { wch: 10 }, // Batch (shorter)
+      { wch: 20 }, // Trainer Name
+      { wch: 26 }, // Trainer Email
+      { wch: 20 }, // Topic
+      { wch: 20 }, // Subtopic
+      { wch: 12 }, // Start Time
+      { wch: 12 }, // End Time
+      { wch: 8 },  // Hours
+      { wch: 12 }  // Student Count
+    ];
+
+    // Center-align all cells (headers + data)
+    try {
+      const range = worksheet['!ref'];
+      if (range) {
+        // iterate all cells in sheet and set alignment style if cell exists
+        Object.keys(worksheet).forEach(addr => {
+          if (addr[0] === '!') return;
+          const cell = worksheet[addr];
+          if (!cell.s) cell.s = {};
+          if (!cell.s.alignment) cell.s.alignment = {};
+          cell.s.alignment.horizontal = 'center';
+          cell.s.alignment.vertical = 'center';
+        });
+      }
+  } catch {
+      // styling is best-effort; ignore errors
+      // console.warn('Could not apply Excel cell styles for alignment', e);
+    }
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Training Entries');
+
+    // Generate file name
+    const campusName = filters.campusName || 'all';
+    const batchName = filters.batchName || 'all';
+
+    const fileName = `training_entries_${campusName}_${batchName}.xlsx`;
+
+    // Save the file
+    XLSX.writeFile(workbook, fileName);
+  })();
 };
 
 export const exportToWord = async (data, filters, companyName) => {
+  // fetch trainers map to resolve names/emails
+  const trainersMap = await fetchTrainersMap();
+
   // Create table rows
   const tableRows = [
     new TableRow({
       children: [
         new TableCell({ 
-          children: [new Paragraph({ text: 'Date', style: 'TableHeader' })], 
-          width: { size: 15, type: WidthType.PERCENTAGE },
-          shading: { fill: "2B80B9" } // Blue background similar to PDF
-        }),
-        new TableCell({ 
-          children: [new Paragraph({ text: 'Project', style: 'TableHeader' })], 
-          width: { size: 15, type: WidthType.PERCENTAGE },
-          shading: { fill: "2B80B9" }
-        }),
-        new TableCell({ 
-          children: [new Paragraph({ text: 'Campus', style: 'TableHeader' })], 
-          width: { size: 15, type: WidthType.PERCENTAGE },
-          shading: { fill: "2B80B9" }
-        }),
-        new TableCell({ 
-          children: [new Paragraph({ text: 'Batch', style: 'TableHeader' })], 
-          width: { size: 15, type: WidthType.PERCENTAGE },
-          shading: { fill: "2B80B9" }
-        }),
-        new TableCell({ 
-          children: [new Paragraph({ text: 'Trainer', style: 'TableHeader' })], 
-          width: { size: 15, type: WidthType.PERCENTAGE },
-          shading: { fill: "2B80B9" }
-        }),
-        new TableCell({ 
-          children: [new Paragraph({ text: 'Topic', style: 'TableHeader' })], 
-          width: { size: 15, type: WidthType.PERCENTAGE },
-          shading: { fill: "2B80B9" }
-        }),
-        new TableCell({ 
-          children: [new Paragraph({ text: 'Subtopic', style: 'TableHeader' })], 
-          width: { size: 15, type: WidthType.PERCENTAGE },
-          shading: { fill: "2B80B9" }
-        }),
-        new TableCell({ 
-          children: [new Paragraph({ text: 'Hours', style: 'TableHeader' })], 
+          children: [new Paragraph({ 
+            text: 'Date', 
+            style: 'TableHeader',
+            alignment: AlignmentType.CENTER
+          })], 
           width: { size: 10, type: WidthType.PERCENTAGE },
           shading: { fill: "2B80B9" }
         }),
         new TableCell({ 
-          children: [new Paragraph({ text: 'Students', style: 'TableHeader' })], 
-          width: { size: 10, type: WidthType.PERCENTAGE },
+          children: [new Paragraph({ 
+            text: 'Campus', 
+            style: 'TableHeader',
+            alignment: AlignmentType.CENTER
+          })], 
+          width: { size: 15, type: WidthType.PERCENTAGE },
+          shading: { fill: "2B80B9" }
+        }),
+        new TableCell({ 
+          children: [new Paragraph({ 
+            text: 'Batch', 
+            style: 'TableHeader',
+            alignment: AlignmentType.CENTER
+          })], 
+          width: { size: 15, type: WidthType.PERCENTAGE },
+          shading: { fill: "2B80B9" }
+        }),
+        new TableCell({ 
+          children: [new Paragraph({ 
+            text: 'Trainer', 
+            style: 'TableHeader',
+            alignment: AlignmentType.CENTER
+          })], 
+          width: { size: 15, type: WidthType.PERCENTAGE },
+          shading: { fill: "2B80B9" }
+        }),
+        new TableCell({ 
+          children: [new Paragraph({ 
+            text: 'Topic', 
+            style: 'TableHeader',
+            alignment: AlignmentType.CENTER
+          })], 
+          width: { size: 15, type: WidthType.PERCENTAGE },
+          shading: { fill: "2B80B9" }
+        }),
+        new TableCell({ 
+          children: [new Paragraph({ 
+            text: 'Subtopic', 
+            style: 'TableHeader',
+            alignment: AlignmentType.CENTER
+          })], 
+          width: { size: 15, type: WidthType.PERCENTAGE },
+          shading: { fill: "2B80B9" }
+        }),
+        new TableCell({ 
+          children: [new Paragraph({ 
+            text: 'Hours', 
+            style: 'TableHeader',
+            alignment: AlignmentType.CENTER
+          })], 
+          width: { size: 8, type: WidthType.PERCENTAGE },
+          shading: { fill: "2B80B9" }
+        }),
+        new TableCell({ 
+          children: [new Paragraph({ 
+            text: 'Students', 
+            style: 'TableHeader',
+            alignment: AlignmentType.CENTER
+          })], 
+          width: { size: 7, type: WidthType.PERCENTAGE },
           shading: { fill: "2B80B9" }
         }),
       ],
@@ -151,45 +308,73 @@ export const exportToWord = async (data, filters, companyName) => {
   // Add data rows with alternating colors
   data.forEach((entry, index) => {
     const isEvenRow = index % 2 === 0;
-    const rowColor = isEvenRow ? "FFFFFF" : "F0F0F0"; // White and light gray alternating
-    
-    tableRows.push(
+    const rowColor = isEvenRow ? "FFFFFF" : "F0F0F0";
+  // resolve trainer display using DB when available
+  const trainerRef = trainersMap[entry.trainerId] || trainersMap[entry.trainer && entry.trainer.uid] || null;
+  const trainerObj = trainerRef || entry.trainer || {};
+  const rawTrainerName = entry.trainerName || '';
+  const rawTrainerEmail = entry.trainerEmail || '';
+  const trainerNameFromEntry = (rawTrainerName && rawTrainerName.includes('@')) ? '' : rawTrainerName;
+  const trainerEmailFromEntry = rawTrainerEmail || (rawTrainerName && rawTrainerName.includes('@') ? rawTrainerName : '');
+  const trainerDisplay = trainerObj.name || trainerNameFromEntry || trainerEmailFromEntry || trainerObj.email || 'N/A';
+
+  tableRows.push(
       new TableRow({
         children: [
           new TableCell({ 
-            children: [new Paragraph(new Date(entry.date.seconds * 1000).toLocaleDateString())],
+              children: [new Paragraph({
+          text: (entry.date && entry.date.seconds) ? new Date(entry.date.seconds * 1000).toLocaleDateString() : (entry.date ? new Date(entry.date).toLocaleDateString() : ''),
+                alignment: AlignmentType.CENTER
+              })],
+              shading: { fill: rowColor }
+            }),
+          new TableCell({ 
+            children: [new Paragraph({
+              text: entry.campusName || 'N/A',
+              alignment: AlignmentType.CENTER
+            })],
             shading: { fill: rowColor }
           }),
           new TableCell({ 
-            children: [new Paragraph(entry.projectName || 'N/A')],
+            children: [new Paragraph({
+              text: entry.batchName || 'N/A',
+              alignment: AlignmentType.CENTER
+            })],
             shading: { fill: rowColor }
           }),
           new TableCell({ 
-            children: [new Paragraph(entry.campusName || 'N/A')],
+            children: [new Paragraph({
+              text: trainerDisplay,
+              alignment: AlignmentType.CENTER
+            })],
             shading: { fill: rowColor }
           }),
           new TableCell({ 
-            children: [new Paragraph(entry.batchName || 'N/A')],
+            children: [new Paragraph({
+              text: entry.topic || '',
+              alignment: AlignmentType.CENTER
+            })],
             shading: { fill: rowColor }
           }),
           new TableCell({ 
-            children: [new Paragraph(entry.trainerName)],
+            children: [new Paragraph({
+              text: entry.subtopic || '',
+              alignment: AlignmentType.CENTER
+            })],
             shading: { fill: rowColor }
           }),
           new TableCell({ 
-            children: [new Paragraph(entry.topic)],
+            children: [new Paragraph({
+              text: entry.hours != null ? String(entry.hours) : '',
+              alignment: AlignmentType.CENTER
+            })],
             shading: { fill: rowColor }
           }),
           new TableCell({ 
-            children: [new Paragraph(entry.subtopic)],
-            shading: { fill: rowColor }
-          }),
-          new TableCell({ 
-            children: [new Paragraph(entry.hours.toString())],
-            shading: { fill: rowColor }
-          }),
-          new TableCell({ 
-            children: [new Paragraph(entry.studentCount.toString())],
+            children: [new Paragraph({
+              text: entry.studentCount != null ? String(entry.studentCount) : '',
+              alignment: AlignmentType.CENTER
+            })],
             shading: { fill: rowColor }
           }),
         ]
@@ -224,7 +409,7 @@ export const exportToWord = async (data, filters, companyName) => {
           basedOn: "Normal",
           next: "Normal",
           run: {
-            color: "FFFFFF", // White text
+            color: "FFFFFF",
             bold: true,
           },
         },
@@ -234,7 +419,7 @@ export const exportToWord = async (data, filters, companyName) => {
           basedOn: "Normal",
           next: "Normal",
           run: {
-            color: "646464", // Gray text
+            color: "646464",
             size: 22,
           },
         },
@@ -244,7 +429,7 @@ export const exportToWord = async (data, filters, companyName) => {
       properties: {
         page: {
           margin: {
-            top: 720, // 1 inch margin (72 * 10)
+            top: 720,
             right: 720,
             bottom: 720,
             left: 720,
@@ -257,14 +442,14 @@ export const exportToWord = async (data, filters, companyName) => {
           style: "Heading1",
         }),
         new Paragraph({
-          text: `Filtered: ${filters.projectName || 'All Projects'} - ${filters.campusName || 'All Campuses'} - ${filters.batchName || 'All Batches'}`,
+          text: `Filtered: ${filters.campusName || 'All Campuses'} - ${filters.batchName || 'All Batches'}`,
           style: "FilterText",
         }),
         new Paragraph({
           text: `Exported on: ${new Date().toLocaleDateString()}`,
           style: "FilterText",
         }),
-        new Paragraph({ text: "" }), // Empty paragraph for spacing
+        new Paragraph({ text: "" }),
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
           rows: tableRows,
@@ -275,6 +460,9 @@ export const exportToWord = async (data, filters, companyName) => {
               color: "DDDDDD",
             },
           },
+          layout: {
+            type: "fixed" // This ensures consistent column widths
+          }
         }),
       ],
     }],
@@ -284,9 +472,8 @@ export const exportToWord = async (data, filters, companyName) => {
   const blob = await Packer.toBlob(doc);
   
   // Generate file name
-  const projectName = filters.projectName || 'all';
   const campusName = filters.campusName || 'all';
   const batchName = filters.batchName || 'all';
   
-  saveAs(blob, `training_entries_${projectName}_${campusName}_${batchName}.docx`);
+  saveAs(blob, `training_entries_${campusName}_${batchName}.docx`);
 };
