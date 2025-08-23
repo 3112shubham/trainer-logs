@@ -32,14 +32,14 @@ const Login = ({ userType = 'trainer' }) => {
       <div className="max-w-md w-full">
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
           <div className="text-center mb-8">
-            <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                  d={userType === 'admin' 
-                    ? "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" 
-                    : "M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"} 
+            <div className="mx-auto h-16 w-16 mb-4">
+              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-800 via-indigo-700 to-blue-700 flex items-center justify-center overflow-hidden shadow-md ring-1 ring-blue-900/20">
+                <img
+                  src="https://res.cloudinary.com/dcjmaapvi/image/upload/v1730120218/Gryphon_Academy_Bird_Logo_yzzl3q.png"
+                  alt="Bird logo"
+                  className="h-12 w-12 object-contain"
                 />
-              </svg>
+              </div>
             </div>
             <h2 className="text-3xl font-bold text-gray-900">
               {title}
@@ -166,10 +166,6 @@ const Login = ({ userType = 'trainer' }) => {
             </div>
           </form>
           
-        </div>
-        
-        <div className="mt-6 text-center text-xs text-gray-500">
-          &copy; {new Date().getFullYear()} Training System. All rights reserved.
         </div>
       </div>
     </div>

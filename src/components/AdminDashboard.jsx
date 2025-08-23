@@ -390,15 +390,24 @@ const AdminDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <div className="bg-blue-600 p-2 rounded-lg mr-3">
-                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+              <div className="mr-3">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-800 via-indigo-700 to-blue-700 flex items-center justify-center overflow-hidden shadow-md ring-1 ring-blue-900/20">
+                  <img
+                    src="https://res.cloudinary.com/dcjmaapvi/image/upload/v1730120218/Gryphon_Academy_Bird_Logo_yzzl3q.png"
+                    alt="Bird logo"
+                    className="h-7 w-7 object-contain"
+                  />
+                </div>
               </div>
               <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
             </div>
             <div className="flex items-center space-x-4">
+              {/* small avatar for mobile */}
+              <div className="md:hidden flex items-center mr-2">
+                <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
+                  {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : currentUser?.email?.charAt(0).toUpperCase()}
+                </div>
+              </div>
               <div className="hidden md:flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-full">
                 <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
                   {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : currentUser?.email?.charAt(0).toUpperCase()}
@@ -423,11 +432,11 @@ const AdminDashboard = () => {
 
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl shadow-sm p-1 mb-8 border border-gray-200 w-max mx-auto">
-          <nav className="flex space-x-2" aria-label="Tabs">
+        <div className="bg-white rounded-xl shadow-sm p-1 mb-8 border border-gray-200 w-full">
+          <nav className="flex space-x-2 px-2 overflow-x-auto" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('entries')}
-              className={`py-3 px-6 rounded-lg font-medium text-sm flex items-center transition-all duration-200 ${
+              className={`py-2 px-4 sm:py-3 sm:px-6 rounded-lg font-medium text-sm flex items-center transition-all duration-200 ${
                 activeTab === 'entries'
                   ? 'bg-blue-100 text-blue-700 shadow-inner'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -440,7 +449,7 @@ const AdminDashboard = () => {
             </button>
             <button
               onClick={() => setActiveTab('addTrainer')}
-              className={`py-3 px-6 rounded-lg font-medium text-sm flex items-center transition-all duration-200 ${
+              className={`py-2 px-4 sm:py-3 sm:px-6 rounded-lg font-medium text-sm flex items-center transition-all duration-200 ${
                 activeTab === 'addTrainer'
                   ? 'bg-blue-100 text-blue-700 shadow-inner'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -453,7 +462,7 @@ const AdminDashboard = () => {
             </button>
             <button
               onClick={() => setActiveTab('manageProjects')}
-              className={`py-3 px-6 rounded-lg font-medium text-sm flex items-center transition-all duration-200 ${
+              className={`py-2 px-4 sm:py-3 sm:px-6 rounded-lg font-medium text-sm flex items-center transition-all duration-200 ${
                 activeTab === 'manageProjects'
                   ? 'bg-blue-100 text-blue-700 shadow-inner'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -484,7 +493,7 @@ const AdminDashboard = () => {
                 </div>
               )}
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
                   <h3 className="text-lg font-medium text-blue-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -499,7 +508,7 @@ const AdminDashboard = () => {
                         type="text"
                         value={trainerName}
                         onChange={(e) => setTrainerName(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         required
                       />
                     </div>
@@ -510,7 +519,7 @@ const AdminDashboard = () => {
                         type="email"
                         value={trainerEmail}
                         onChange={(e) => setTrainerEmail(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         required
                       />
                     </div>
@@ -518,7 +527,7 @@ const AdminDashboard = () => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                      className="w-full px-4 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       {loading ? 'Creating...' : 'Create Trainer Account'}
                     </button>
@@ -545,7 +554,7 @@ const AdminDashboard = () => {
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
                         placeholder="trainer@example.com"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                         required
                       />
                     </div>
@@ -553,7 +562,7 @@ const AdminDashboard = () => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                      className="w-full px-4 py-2 sm:py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       {loading ? 'Sending...' : 'Send Reset Link'}
                     </button>
@@ -576,7 +585,7 @@ const AdminDashboard = () => {
                 </div>
               )}
               
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                   <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -591,14 +600,14 @@ const AdminDashboard = () => {
                         type="text"
                         value={projectName}
                         onChange={(e) => setProjectName(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         required
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                      className="w-full px-4 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       {loading ? 'Creating...' : 'Create Project'}
                     </button>
@@ -618,7 +627,7 @@ const AdminDashboard = () => {
                       <select
                         value={selectedProject}
                         onChange={(e) => setSelectedProject(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         required
                       >
                         <option value="">Select Project</option>
@@ -642,7 +651,7 @@ const AdminDashboard = () => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                      className="w-full px-4 py-2 sm:py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       {loading ? 'Creating...' : 'Create Campus'}
                     </button>
@@ -662,7 +671,7 @@ const AdminDashboard = () => {
                       <select
                         value={selectedProject}
                         onChange={(e) => setSelectedProject(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         required
                       >
                         <option value="">Select Project</option>
@@ -709,7 +718,7 @@ const AdminDashboard = () => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                      className="w-full px-4 py-2 sm:py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       {loading ? 'Creating...' : 'Create Batch'}
                     </button>

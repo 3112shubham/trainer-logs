@@ -13,8 +13,10 @@ const EntryListForAdmin = () => {
   const [filters, setFilters] = useState({
     project: '',
     campus: '',
-    batch: '',
-    trainer: ''
+  batch: '',
+  trainer: '',
+  startDate: '',
+  endDate: ''
   });
   const [projectHasCampuses, setProjectHasCampuses] = useState(true);
   
@@ -25,7 +27,7 @@ const EntryListForAdmin = () => {
       
       const constraints = [];
       
-      if (filters.project) {
+  if (filters.project) {
         constraints.push(where('projectId', '==', filters.project));
       }
       
@@ -39,6 +41,16 @@ const EntryListForAdmin = () => {
       
       if (filters.trainer) {
         constraints.push(where('trainerId', '==', filters.trainer));
+      }
+
+      // date range filters
+      if (filters.startDate) {
+        constraints.push(where('date', '>=', new Date(filters.startDate)));
+      }
+      if (filters.endDate) {
+        const end = new Date(filters.endDate);
+        end.setHours(23,59,59,999);
+        constraints.push(where('date', '<=', end));
       }
       
       if (constraints.length > 0) {
@@ -116,6 +128,13 @@ const EntryListForAdmin = () => {
     }
   };
 
+  const getTrainerDisplay = (trainerId, entry) => {
+    const t = trainers.find(tr => tr.id === trainerId || tr.uid === trainerId);
+    if (t) return t.name || t.email || t.uid || 'N/A';
+    // fallback to entry fields
+    return (entry && (entry.trainerName || entry.trainerEmail)) || 'N/A';
+  };
+
   const fetchCampuses = async (projectId) => {
     try {
       const q = query(collection(db, 'campuses'), where('projectId', '==', projectId));
@@ -184,18 +203,18 @@ const EntryListForAdmin = () => {
   const handleFilterChange = (filterName, value) => {
     // Reset dependent filters when parent filter changes
     if (filterName === 'project') {
-      setFilters({
+      setFilters(prev => ({
+        ...prev,
         project: value,
         campus: '',
-        batch: '',
-        trainer: filters.trainer
-      });
+        batch: ''
+      }));
     } else if (filterName === 'campus') {
-      setFilters({
-        ...filters,
+      setFilters(prev => ({
+        ...prev,
         campus: value,
         batch: ''
-      });
+      }));
     } else {
       setFilters(prev => ({
         ...prev,
@@ -230,7 +249,7 @@ const EntryListForAdmin = () => {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
           <select
-            value={filters.project}
+            value={filters.project || ''}
             onChange={(e) => handleFilterChange('project', e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
           >
@@ -245,7 +264,7 @@ const EntryListForAdmin = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Campus</label>
             <select
-              value={filters.campus}
+              value={filters.campus || ''}
               onChange={(e) => handleFilterChange('campus', e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
@@ -261,7 +280,7 @@ const EntryListForAdmin = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Batch</label>
             <select
-              value={filters.batch}
+              value={filters.batch || ''}
               onChange={(e) => handleFilterChange('batch', e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               disabled={projectHasCampuses && !filters.campus}
@@ -273,17 +292,35 @@ const EntryListForAdmin = () => {
             </select>
           </div>
         )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+            <input
+              type="date"
+              value={filters.startDate || ''}
+              onChange={(e) => handleFilterChange('startDate', e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+            <input
+              type="date"
+              value={filters.endDate || ''}
+              onChange={(e) => handleFilterChange('endDate', e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Trainer</label>
           <select
-            value={filters.trainer}
+            value={filters.trainer || ''}
             onChange={(e) => handleFilterChange('trainer', e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">All Trainers</option>
             {trainers.map(trainer => (
-              <option key={trainer.uid} value={trainer.uid}>
+              <option key={trainer.uid || trainer.id} value={trainer.uid || trainer.id || ''}>
                 {trainer.name || trainer.email}
               </option>
             ))}
@@ -344,7 +381,7 @@ const EntryListForAdmin = () => {
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{entry.projectName}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{entry.campusName || 'N/A'}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{entry.batchName}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{entry.trainerName}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{getTrainerDisplay(entry.trainerId, entry)}</td>
                   <td className="px-4 py-4 text-sm text-gray-900">
                     <div className="font-medium">{entry.topic}</div>
                     {entry.subtopic && (

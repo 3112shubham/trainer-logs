@@ -12,7 +12,10 @@ const EntryListForTrainer = ({ onEditEntry = () => {} }) => {
   const [filters, setFilters] = useState({
     project: '',
     campus: '',
-    batch: ''
+
+    batch: '',
+    startDate: '',
+    endDate: ''
   });
   const [projectHasCampuses, setProjectHasCampuses] = useState(true);
   
@@ -29,7 +32,7 @@ const EntryListForTrainer = ({ onEditEntry = () => {} }) => {
         orderBy('date', 'desc')
       );
       
-      const constraints = [where('trainerId', '==', currentUser.uid)];
+  const constraints = [where('trainerId', '==', currentUser.uid)];
       
       if (filters.project) {
         constraints.push(where('projectId', '==', filters.project));
@@ -41,6 +44,16 @@ const EntryListForTrainer = ({ onEditEntry = () => {} }) => {
       
       if (filters.batch) {
         constraints.push(where('batchId', '==', filters.batch));
+      }
+
+      // date range filters
+      if (filters.startDate) {
+        constraints.push(where('date', '>=', new Date(filters.startDate)));
+      }
+      if (filters.endDate) {
+        const end = new Date(filters.endDate);
+        end.setHours(23,59,59,999);
+        constraints.push(where('date', '<=', end));
       }
       
       if (constraints.length > 0) {
@@ -171,17 +184,18 @@ const EntryListForTrainer = ({ onEditEntry = () => {} }) => {
   const handleFilterChange = (filterName, value) => {
     // Reset dependent filters when parent filter changes
     if (filterName === 'project') {
-      setFilters({
+      setFilters(prev => ({
+        ...prev,
         project: value,
         campus: '',
         batch: ''
-      });
+      }));
     } else if (filterName === 'campus') {
-      setFilters({
-        ...filters,
+      setFilters(prev => ({
+        ...prev,
         campus: value,
         batch: ''
-      });
+      }));
     } else {
       setFilters(prev => ({
         ...prev,
@@ -204,9 +218,27 @@ const EntryListForTrainer = ({ onEditEntry = () => {} }) => {
       
       <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+          <input
+            type="date"
+            value={filters.startDate || ''}
+            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+          <input
+            type="date"
+            value={filters.endDate || ''}
+            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
           <select
-            value={filters.project}
+            value={filters.project || ''}
             onChange={(e) => handleFilterChange('project', e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
           >
@@ -221,7 +253,7 @@ const EntryListForTrainer = ({ onEditEntry = () => {} }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Campus</label>
             <select
-              value={filters.campus}
+              value={filters.campus || ''}
               onChange={(e) => handleFilterChange('campus', e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
@@ -237,7 +269,7 @@ const EntryListForTrainer = ({ onEditEntry = () => {} }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Batch</label>
             <select
-              value={filters.batch}
+              value={filters.batch || ''}
               onChange={(e) => handleFilterChange('batch', e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               disabled={projectHasCampuses && !filters.campus}
