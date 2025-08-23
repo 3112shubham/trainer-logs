@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter } from 'react-router-dom'; // Import BrowserRouter
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './services/firebase';
@@ -50,15 +51,17 @@ function App() {
   }
 
   return (
-    <div className="App">
-      {!user ? (
-        <Login />
-      ) : userRole === 'admin' ? (
-        <AdminDashboard />
-      ) : (
-        <TrainerDashboard />
-      )}
-    </div>
+    <BrowserRouter basename="/closure"> {/* Add BrowserRouter with basename here */}
+      <div className="App">
+        {!user ? (
+          <Login />
+        ) : userRole === 'admin' ? (
+          <AdminDashboard />
+        ) : (
+          <TrainerDashboard />
+        )}
+      </div>
+    </BrowserRouter>
   );
 }
 
