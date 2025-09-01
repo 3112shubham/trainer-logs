@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../services/firebase';
 
 const Login = ({ userType = 'trainer' }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
 
@@ -14,12 +18,32 @@ const Login = ({ userType = 'trainer' }) => {
     
     try {
       setError('');
+      setSuccess('');
       setLoading(true);
       await login(email, password);
     } catch (error) {
       setError('Failed to sign in: ' + error.message);
     }
     setLoading(false);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address first');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    
+    try {
+      setError('');
+      setSuccess('');
+      setResetLoading(true);
+      await sendPasswordResetEmail(auth, email);
+      setSuccess(`Password reset link sent to ${email}`);
+    } catch (error) {
+      setError('Error sending reset email: ' + error.message);
+    }
+    setResetLoading(false);
   };
 
   const title = userType === 'admin' ? 'Admin Portal' : 'Trainer Portal';
@@ -60,6 +84,21 @@ const Login = ({ userType = 'trainer' }) => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-red-700">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {success && (
+              <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md" role="alert">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-green-700">{success}</p>
                   </div>
                 </div>
               </div>
@@ -143,6 +182,15 @@ const Login = ({ userType = 'trainer' }) => {
                   Remember me
                 </label>
               </div>
+              
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={resetLoading}
+                className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
+              >
+                {resetLoading ? 'Sending...' : 'Forgot password?'}
+              </button>
             </div>
 
             <div>
