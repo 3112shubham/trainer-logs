@@ -39,7 +39,7 @@ const Login = ({ userType = 'trainer' }) => {
       setSuccess('');
       setResetLoading(true);
       await sendPasswordResetEmail(auth, email);
-      setSuccess(`Password reset link sent to ${email}`);
+      setSuccess(`If an account exists with this email, a password reset link has been sent to ${email}`);
     } catch (error) {
       setError('Error sending reset email: ' + error.message);
     }
